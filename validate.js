@@ -36,7 +36,8 @@
         },
         callback: function(errors) {
 
-        }
+        },
+        checkOnSubmit: true
     };
 
     /*
@@ -70,13 +71,17 @@
      *     @argument event - The javascript event
      */
 
-    var FormValidator = function(formName, fields, callback) {
+    var FormValidator = function(formName, fields, callback, flags) {
+        if(typeof flags === 'undefined') {
+            flags = {};
+        }
         this.callback = callback || defaults.callback;
         this.errors = [];
         this.fields = {};
         this.form = document.forms[formName] || {};
         this.messages = {};
         this.handlers = {};
+        this.checkOnSubmit = typeof flags.checkOnSubmit !== 'undefined' ? flags.checkOnSubmit : defaults.checkOnSubmit;
 
         for (var i = 0, fieldLength = fields.length; i < fieldLength; i++) {
             var field = fields[i];
@@ -105,13 +110,15 @@
          * Attach an event callback for the form submission
          */
 
-        this.form.onsubmit = (function(that) {
-            return function(event) {
-                try {
-                    return that._validateForm(event);
-                } catch(e) {}
-            }
-        })(this);
+        if(this.checkOnSubmit) {
+            this.form.onsubmit = (function(that) {
+                return function(event) {
+                    try {
+                        return that._validateForm(event);
+                    } catch(e) {}
+                }
+            })(this);
+        }
     };
 
     /*
