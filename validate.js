@@ -37,6 +37,7 @@
         callback: function(errors) {
 
         },
+        checkSingleFields: true,
         checkOnSubmit: true
     };
 
@@ -79,9 +80,12 @@
         this.errors = [];
         this.fields = {};
         this.form = document.forms[formName] || {};
+        this.formName = formName;
         this.messages = {};
         this.handlers = {};
+        this.checkSingleFields = typeof flags.checkSingleFields !== 'undefined' ? flags.checkSingleFields : defaults.checkSingleFields;
         this.checkOnSubmit = typeof flags.checkOnSubmit !== 'undefined' ? flags.checkOnSubmit : defaults.checkOnSubmit;
+        this.formSubmitted = false;
 
         for (var i = 0, fieldLength = fields.length; i < fieldLength; i++) {
             var field = fields[i];
@@ -104,6 +108,13 @@
                 value: null,
                 checked: null
             };
+
+            /*
+             * Attach an event callback for individual field check.
+             */
+            if(this.checkSingleFields) {
+                this._addFieldCheck(field);
+            }
         }
 
         /*
@@ -171,9 +182,73 @@
             checked: null
         };
 
+        /*
+         * Attach an event callback for individual field check.
+         */
+        if(this.checkSingleFields) {
+            this._addFieldCheck(field);
+        }
+
         // return this for chaining
         return this;
     };
+
+    /*
+     * @public
+     * Validates an individual field
+     */
+
+    FormValidator.prototype.validateField = function(name) {
+        // Remove any existing errors for this field before validating
+        for(var i = this.errors.length - 1; i >= 0; i--) {
+            if(this.errors[i].name == name) {
+                this.errors.splice(i, 1);
+            }
+        }
+
+        for (var key in this.fields) {
+            if (this.fields.hasOwnProperty(key)) {
+                var field = this.fields[key] || {};
+                if(field.name == name) {
+                    var element = this.form[field.name];
+
+                    if (element && element !== undefined) {
+                        field.id = element.id;
+                        field.type = element.type;
+                        field.value = element.value;
+                        field.checked = element.checked;
+                        field.validateField = true;
+                    }
+
+                    /*
+                     * Run through the rules for each field.
+                     */
+
+                    var failed = this._validateField(field);
+                }
+            }
+        }
+
+        if(failed !== 'undefined') {
+            // invert boolean so that it matches isValid (failed = false == isValid = true)
+            return !failed;
+        } else {
+            return true;
+        }
+    }
+
+    /*
+     * @private
+     * Add event handler for checking individual fields (e.g. onBlur)
+     */
+    FormValidator.prototype._addFieldCheck = function(field) {
+        if(field && typeof field === 'object') {
+            document[this.formName].elements[field.name].onblur = function onblur() {
+                validator.validateField(this.name);
+            }
+        }
+        return this;
+    }
 
     /*
      * @private
@@ -182,6 +257,7 @@
 
     FormValidator.prototype._validateForm = function(event) {
         this.errors = [];
+        this.formSubmitted = true;
 
         for (var key in this.fields) {
             if (this.fields.hasOwnProperty(key)) {
@@ -193,6 +269,7 @@
                     field.type = element.type;
                     field.value = element.value;
                     field.checked = element.checked;
+                    field.validateField = false;
                 }
 
                 /*
@@ -229,9 +306,10 @@
 
         /*
          * If the value is null and not required, we don't need to run through validation
+         * Don't check required on per-field validations unless form submission was previously attempted
          */
 
-        if (field.rules.indexOf('required') === -1 && (!field.value || field.value === '' || field.value === undefined)) {
+        if ((field.rules.indexOf('required') === -1 || (field.rules.indexOf('required') !== -1 && field.validateField && !this.formSubmitted)) && (!field.value || field.value === '' || field.value === undefined)) {
             return;
         }
 
@@ -299,6 +377,7 @@
                 break;
             }
         }
+        return failed;
     };
 
     /*
