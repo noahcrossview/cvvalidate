@@ -141,6 +141,34 @@
     };
 
     /*
+     * @public
+     * Add a field to be validated
+     */
+
+    FormValidator.prototype.addField = function(field) {
+        if (!field.name || !field.rules) {
+            return this;
+        }
+
+        /*
+         * Add to the master fields array that has all the information needed to validate
+         */
+
+        this.fields[field.name] = {
+            name: field.name,
+            display: field.display || field.name,
+            rules: field.rules,
+            id: null,
+            type: null,
+            value: null,
+            checked: null
+        };
+
+        // return this for chaining
+        return this;
+    };
+
+    /*
      * @private
      * Runs the validation when the form is submitted.
      */
